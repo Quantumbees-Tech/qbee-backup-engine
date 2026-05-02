@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Backup Jobs</title>
+    <style>
+      :root {
+        --bg: #f4f7fb;
+        --panel: #ffffff;
+        --line: #e3e8f3;
+        --text: #1a2440;
+        --muted: #607095;
+        --running: #0b8f61;
+        --failed: #c53f3f;
+        --idle: #2b6cb0;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+        background: linear-gradient(
+          135deg,
+          #edf3ff 0%,
+          #f8fcff 45%,
+          #eefaf4 100%
+        );
+        color: var(--text);
+        min-height: 100vh;
+      }
+      .wrap {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 24px 16px 34px;
+      }
+      .bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(1.35rem, 2vw, 1.8rem);
+      }
+      a {
+        color: #2b6cb0;
+        text-decoration: none;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 14px 35px rgba(24, 47, 89, 0.08);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+      }
+      thead {
+        background: #f1f5fb;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        color: #3c4f79;
+        font-weight: 700;
+      }
+      .muted {
+        color: var(--muted);
+      }
+
+      .pill {
+        display: inline-block;
+        padding: 3px 9px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 0.8rem;
+      }
+      .running {
+        color: var(--running);
+        background: #d8f6ea;
+      }
+      .failed {
+        color: var(--failed);
+        background: #fde3e3;
+      }
+      .idle {
+        color: var(--idle);
+        background: #deecff;
+      }
+
+      .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin: 10px 0 14px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 900px) {
+        table {
+          font-size: 0.84rem;
+        }
+        th,
+        td {
+          padding: 8px 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="bar">
+        <h1>Backup Jobs</h1>
+        <a href="/">Back to Overview</a>
+      </div>
+
+      <div class="toolbar">
+        <div id="meta">Loading...</div>
+        <div id="stamp"></div>
+      </div>
+
+      <div class="panel">
+        <table>
+          <thead>
+            <tr>
+              <th>Job</th>
+              <th>State</th>
+              <th>Source</th>
+              <th>Schedule</th>
+              <th>Next Run</th>
+              <th>Last Success</th>
+              <th>Success/Fail</th>
+              <th>Last Error</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      const rows = document.getElementById("rows");
+      const meta = document.getElementById("meta");
+      const stamp = document.getElementById("stamp");
+
+      const fmt = (v) => (v ? new Date(v).toLocaleString() : "-");
+      const esc = (s) =>
+        (s || "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;");
+
+      function statePill(state) {
+        const cls =
+          state === "running"
+            ? "running"
+            : state === "failed"
+              ? "failed"
+              : "idle";
+        return (
+          '<span class="pill ' + cls + '">' + esc(state || "idle") + "</span>"
+        );
+      }
+
+      async function refresh() {
+        try {
+          const res = await fetch("/api/monitor/jobs", { cache: "no-store" });
+          const data = await res.json();
+
+          if (data.meta && data.meta.enabled === false) {
+            meta.textContent = data.meta.message || "Scheduler disabled";
+            rows.innerHTML = "";
+            stamp.textContent = "";
+            return;
+          }
+
+          const list = data.jobs || [];
+          const counts = (data.meta && data.meta.counts) || {
+            running: 0,
+            failed: 0,
+            idle: 0,
+          };
+          meta.textContent =
+            "Jobs: " +
+            list.length +
+            " | Running: " +
+            counts.running +
+            " | Failed: " +
+            counts.failed +
+            " | Idle: " +
+            counts.idle;
+          stamp.textContent = "Updated: " + new Date().toLocaleTimeString();
+
+          rows.innerHTML = list
+            .map((j) => {
+              return (
+                "<tr>" +
+                "<td><strong>" +
+                esc(j.name || j.id) +
+                '</strong><br><span class="muted">' +
+                esc(j.id) +
+                "</span></td>" +
+                "<td>" +
+                statePill(j.state) +
+                "</td>" +
+                "<td>" +
+                esc(j.sourceType) +
+                '<br><span class="muted">' +
+                esc(j.storageLocation) +
+                "</span></td>" +
+                "<td>" +
+                esc(j.schedule) +
+                '<br><span class="muted">Retention ' +
+                esc(j.retentionPolicy) +
+                "</span></td>" +
+                "<td>" +
+                fmt(j.nextRunAt) +
+                "</td>" +
+                "<td>" +
+                fmt(j.lastSuccessAt) +
+                "</td>" +
+                "<td>" +
+                (j.successfulRuns || 0) +
+                " / " +
+                (j.failedRuns || 0) +
+                "</td>" +
+                '<td class="muted">' +
+                esc(j.lastError || "-") +
+                "</td>" +
+                "</tr>"
+              );
+            })
+            .join("");
+        } catch (e) {
+          meta.textContent = "Unable to load monitor data";
+        }
+      }
+
+      refresh();
+      setInterval(refresh, 5000);
+    </script>
+  </body>
+</html>

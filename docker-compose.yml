@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  engine:
+    build:
+      context: .
+      args:
+        VERSION: "0.1.0"
+    image: qbee-backup-engine:latest
+    container_name: qbee-engine
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      HTTP_ADDR: ":8080"
+
+      # Path inside the container where the YAML job config is mounted.
+      CONFIG_FILE: "/etc/qbee/config.yaml"
+      LOG_LEVEL: "info"
+    volumes:
+      - backup_data:/data/backups
+      # Mount your config.yaml into the container (read-only).
+      # Create the file from config.example.yaml and adjust it to your needs.
+      - ./config.yaml:/etc/qbee/config.yaml:ro
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8080/healthz" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ── MinIO (S3-compatible, for local development) ─────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: qbee-minio
+    restart: unless-stopped
+    profiles: [ "minio" ]
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: [ "CMD", "mc", "ready", "local" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  backup_data:
+    driver: local
+  minio_data:
+    driver: local

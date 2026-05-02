@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Qbee Backup Monitor</title>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --panel: #131a2c;
+        --text: #e7ecff;
+        --muted: #9aa5cc;
+        --accent: #3fd3a6;
+        --warn: #ffb347;
+        --danger: #ff6b6b;
+        --idle: #5bc0eb;
+        --ring: rgba(63, 211, 166, 0.35);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(
+            1200px 500px at 100% -10%,
+            #20466f 0%,
+            transparent 60%
+          ),
+          radial-gradient(
+            900px 500px at -10% 110%,
+            #1f5a4c 0%,
+            transparent 60%
+          ),
+          var(--bg);
+        min-height: 100vh;
+      }
+      .wrap {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 28px 20px 40px;
+      }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+      h1 {
+        font-size: clamp(1.5rem, 2vw, 2.1rem);
+        margin: 0;
+        letter-spacing: 0.3px;
+      }
+      .btn {
+        color: var(--text);
+        text-decoration: none;
+        border: 1px solid rgba(154, 165, 204, 0.35);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 10px 14px;
+        border-radius: 10px;
+        transition: 0.2s ease;
+      }
+      .btn:hover {
+        border-color: var(--ring);
+        box-shadow: 0 0 0 4px var(--ring);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+      }
+      .card {
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.04),
+          rgba(255, 255, 255, 0.02)
+        );
+        border: 1px solid rgba(154, 165, 204, 0.22);
+        border-radius: 14px;
+        padding: 16px;
+        backdrop-filter: blur(4px);
+      }
+      .k {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin-bottom: 4px;
+      }
+      .v {
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+      .ok {
+        color: var(--accent);
+      }
+      .warn {
+        color: var(--warn);
+      }
+      .err {
+        color: var(--danger);
+      }
+      .idle {
+        color: var(--idle);
+      }
+
+      .foot {
+        margin-top: 18px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <h1>Qbee Backup Monitor</h1>
+        <a class="btn" href="/monitor">Open Job Table</a>
+      </div>
+
+      <div class="grid" id="cards">
+        <div class="card">
+          <div class="k">Total Jobs</div>
+          <div class="v" id="total">-</div>
+        </div>
+        <div class="card">
+          <div class="k">Running</div>
+          <div class="v ok" id="running">-</div>
+        </div>
+        <div class="card">
+          <div class="k">Idle</div>
+          <div class="v idle" id="idle">-</div>
+        </div>
+        <div class="card">
+          <div class="k">Failed</div>
+          <div class="v err" id="failed">-</div>
+        </div>
+      </div>
+
+      <div class="foot" id="status">Loading...</div>
+    </div>
+
+    <script>
+      const el = (id) => document.getElementById(id);
+
+      async function refresh() {
+        try {
+          const res = await fetch("/api/monitor/jobs", { cache: "no-store" });
+          const data = await res.json();
+          const jobs = data.jobs || [];
+          const counts = (data.meta && data.meta.counts) || {
+            running: 0,
+            failed: 0,
+            idle: 0,
+          };
+
+          el("total").textContent = jobs.length;
+          el("running").textContent = counts.running || 0;
+          el("idle").textContent = counts.idle || 0;
+          el("failed").textContent = counts.failed || 0;
+
+          if (data.meta && data.meta.enabled === false) {
+            el("status").textContent =
+              data.meta.message || "Scheduler is disabled";
+          } else {
+            el("status").textContent =
+              "Updated: " + new Date().toLocaleTimeString();
+          }
+        } catch (e) {
+          el("status").textContent = "Failed to load monitor data";
+        }
+      }
+
+      refresh();
+      setInterval(refresh, 5000);
+    </script>
+  </body>
+</html>

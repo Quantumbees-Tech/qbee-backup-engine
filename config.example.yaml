@@ -1,0 +1,81 @@
+# qbee Backup Engine — Job Configuration
+#
+# Mount this file into the container and point CONFIG_FILE at it:
+#   docker run -e CONFIG_FILE=/etc/qbee/config.yaml \
+#              -v $(pwd)/config.yaml:/etc/qbee/config.yaml:ro \
+#              qbee-backup-engine
+#
+# Supported source types : Redis, PostgreSQL, MongoDB
+# Supported storage types: s3 (including S3-compatible), local
+#
+# Retention policy format: "<N>d"  e.g. "7d" = keep 7 days of backups
+
+# ── Backup Jobs ───────────────────────────────────────────────────────────────
+backupJobs:
+  # Redis — streams the RDB snapshot via redis-cli
+  - id: redis-backup-job-1
+    name: Redis Backup Job 1
+    schedule: "0 * * * *" # every hour (minute hour dom month dow)
+    retentionPolicy: "7d"
+    storageLocation: livepin-r2-backups
+    redisUrl: "redis://localhost:6379"
+
+  # PostgreSQL — uses pg_dump --format=custom (already compressed)
+  - id: postgres-backup-job-1
+    name: PostgreSQL Backup Job 1
+    schedule: "0 */6 * * *" # every 6 hours
+    retentionPolicy: "30d"
+    storageLocation: livepin-r2-backups
+    postgresUrl: "postgresql://user:password@localhost:5432/mydb"
+
+  # MongoDB — uses mongodump --archive (single binary stream)
+  - id: mongodb-backup-job-1
+    name: MongoDB Backup Job 1
+    schedule: "0 0 * * *" # daily at midnight
+    retentionPolicy: "30d"
+    storageLocation: livepin-r2-backups
+    mongodbUrl: "mongodb://user:password@localhost:27017/mydb"
+
+# ── Storage Locations ─────────────────────────────────────────────────────────
+storageLocations:
+  # Cloudflare R2 (S3-compatible)
+  - id: livepin-r2-backups
+    name: LivePin R2 Backups
+    type: s3
+    config:
+      bucketName: livepin-backups
+      accessKeyId: your-access-key-id
+      secretAccessKey: your-secret-access-key
+      region: auto
+      # Cloudflare R2 endpoint — replace <ACCOUNT_ID> with your account ID
+      endpoint: "https://<ACCOUNT_ID>.r2.cloudflarestorage.com"
+      forcePathStyle: true
+
+  # Standard AWS S3 (no custom endpoint needed)
+  # - id: aws-s3-backups
+  #   name: AWS S3 Backups
+  #   type: s3
+  #   config:
+  #     bucketName: my-backup-bucket
+  #     accessKeyId: AKIAIOSFODNN7EXAMPLE
+  #     secretAccessKey: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  #     region: us-east-1
+
+  # MinIO (local S3-compatible, useful for development)
+  # - id: minio-local
+  #   name: MinIO Local
+  #   type: s3
+  #   config:
+  #     bucketName: backups
+  #     accessKeyId: minioadmin
+  #     secretAccessKey: minioadmin
+  #     region: us-east-1
+  #     endpoint: "http://minio:9000"
+  #     forcePathStyle: true
+
+  # Local filesystem
+  # - id: local-backups
+  #   name: Local Backups
+  #   type: local
+  #   config:
+  #     localPath: /data/backups

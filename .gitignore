@@ -1,0 +1,29 @@
+# Binaries
+/bin/
+/dist/
+qbee-engine
+
+# Go build cache
+/vendor/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Editor artifacts
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage.out
+coverage.html
+
+# Backup data (should live in a volume, not the repo)
+/data/
