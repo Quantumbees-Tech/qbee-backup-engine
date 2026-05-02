@@ -51,10 +51,6 @@ ENV HTTP_ADDR=":8080" \
 
 EXPOSE 8080
 
-# /data/backups  — default local backup storage
-# /etc/qbee      — mount your config.yaml here (read-only)
-VOLUME ["/data/backups"]
-
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD curl -sf http://localhost:8080/healthz || exit 1
 
